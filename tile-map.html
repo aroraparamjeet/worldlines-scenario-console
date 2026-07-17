@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worldlines — Scenario Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1319; --panel:#141c25; --panel2:#0f1720; --line:#233040; --line2:#2e3d4f;
+    --txt:#d9e2ea; --dim:#8ba0b3; --faint:#5b7183;
+    --accent:#7fc4d8; --accent2:#4a8ea3;
+    --good:#3fb96b; --mid:#d9a83c; --bad:#d84f43;
+    --radius:10px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:'Space Grotesk', sans-serif; font-size:14px;
+    overflow:hidden;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  #app{display:grid; grid-template-columns:330px 1fr; grid-template-rows:56px 1fr; height:100vh;}
+  header{
+    grid-column:1/3; display:flex; align-items:center; gap:16px;
+    padding:0 20px; border-bottom:1px solid var(--line); background:var(--panel2);
+  }
+  header h1{font-size:16px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;}
+  header h1 span{color:var(--accent);}
+  header .sub{color:var(--faint); font-size:11px; letter-spacing:.06em;}
+  #worldStat{margin-left:auto; display:flex; align-items:center; gap:14px;}
+  #worldStat .lbl{font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.12em; text-align:right;}
+  #worldScore{font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;}
+  #worldDelta{font-family:'IBM Plex Mono',monospace; font-size:11px;}
+  #resetBtn{
+    background:none; border:1px solid var(--line2); color:var(--dim); border-radius:6px;
+    padding:6px 12px; font-family:'IBM Plex Mono',monospace; font-size:11px; cursor:pointer;
+  }
+  #resetBtn:hover{border-color:var(--accent); color:var(--accent);}
+
+  aside{
+    border-right:1px solid var(--line); background:var(--panel2);
+    overflow-y:auto; padding:16px 14px 40px;
+  }
+  aside h2{font-size:11px; text-transform:uppercase; letter-spacing:.14em; color:var(--faint); margin:6px 2px 12px;}
+  .factor{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px 12px 10px; margin-bottom:10px; transition:opacity .25s, border-color .25s;
+  }
+  .factor.off{opacity:.42;}
+  .factor .top{display:flex; align-items:flex-start; gap:8px;}
+  .factor .name{font-weight:600; font-size:13px; line-height:1.25; flex:1; cursor:default;}
+  .factor .val{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--accent); min-width:34px; text-align:right;}
+  .factor .desc{font-size:11px; color:var(--faint); margin-top:3px; line-height:1.4;}
+  .factor input[type=range]{width:100%; margin-top:10px; accent-color:var(--accent); cursor:pointer;}
+  .factor .row2{display:flex; align-items:center; gap:10px; margin-top:8px;}
+  .switch{position:relative; width:30px; height:16px; flex:none; cursor:pointer;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider-t{
+    position:absolute; inset:0; background:var(--line2); border-radius:16px; transition:.2s;
+  }
+  .slider-t::before{
+    content:''; position:absolute; width:12px; height:12px; left:2px; top:2px;
+    background:var(--dim); border-radius:50%; transition:.2s;
+  }
+  .switch input:checked + .slider-t{background:var(--accent2);}
+  .switch input:checked + .slider-t::before{transform:translateX(14px); background:#eaf6fa;}
+  .rm{
+    margin-left:auto; background:none; border:none; color:var(--faint); cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; padding:2px 4px;
+  }
+  .rm:hover{color:var(--bad);}
+  .toglabel{font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.08em;}
+
+  #addBox{
+    border:1px dashed var(--line2); border-radius:var(--radius); padding:12px; margin-top:16px;
+  }
+  #addBox h3{font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--dim); margin-bottom:10px;}
+  #addBox input[type=text]{
+    width:100%; background:var(--bg); border:1px solid var(--line2); border-radius:6px;
+    color:var(--txt); padding:7px 9px; font-family:inherit; font-size:12px; margin-bottom:9px;
+  }
+  #addBox input[type=text]:focus{outline:none; border-color:var(--accent);}
+  .chiprow{display:flex; flex-wrap:wrap; gap:5px; margin-bottom:9px;}
+  .chip{
+    font-size:10px; font-family:'IBM Plex Mono',monospace; border:1px solid var(--line2);
+    border-radius:20px; padding:3px 9px; color:var(--dim); cursor:pointer; user-select:none;
+  }
+  .chip.sel{border-color:var(--accent); color:var(--accent); background:rgba(127,196,216,.08);}
+  .dirrow{display:flex; gap:6px; margin-bottom:9px;}
+  .dirbtn{
+    flex:1; font-size:11px; padding:5px 0; border-radius:6px; border:1px solid var(--line2);
+    background:none; color:var(--dim); cursor:pointer; font-family:'IBM Plex Mono',monospace;
+  }
+  .dirbtn.sel.hurt{border-color:var(--bad); color:var(--bad);}
+  .dirbtn.sel.help{border-color:var(--good); color:var(--good);}
+  #addStrength{width:100%; accent-color:var(--accent); margin-bottom:6px;}
+  #addBtn{
+    width:100%; padding:8px 0; border-radius:6px; border:none; background:var(--accent2);
+    color:#eaf6fa; font-weight:600; font-size:12px; cursor:pointer; letter-spacing:.04em;
+  }
+  #addBtn:hover{background:var(--accent);color:#0d1319;}
+  .hint{font-size:10px; color:var(--faint); margin:4px 0 8px; line-height:1.4;}
+
+  main{position:relative; overflow:auto; background:
+    radial-gradient(1200px 600px at 60% 30%, #131c26 0%, var(--bg) 70%);}
+  #mapWrap{position:relative; padding:34px 30px 120px; min-width:1180px;}
+  #legend{
+    display:flex; align-items:center; gap:10px; margin-bottom:22px;
+  }
+  #legendBar{
+    width:220px; height:8px; border-radius:4px;
+    background:linear-gradient(90deg, var(--bad), var(--mid), var(--good));
+  }
+  #legend span{font-size:10px; color:var(--faint); font-family:'IBM Plex Mono',monospace; letter-spacing:.06em;}
+  #bandCounts{margin-left:20px; display:flex; gap:14px;}
+  #bandCounts .b{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim);}
+  #bandCounts .dot{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle;}
+
+  #map{position:relative;}
+  .tile{
+    position:absolute; width:48px; height:44px; border-radius:8px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    cursor:pointer; transition:background-color .45s ease, transform .15s ease, box-shadow .2s;
+    border:1px solid rgba(0,0,0,.35);
+  }
+  .tile:hover{transform:translateY(-3px) scale(1.06); z-index:5; box-shadow:0 6px 18px rgba(0,0,0,.5);}
+  .tile.selected{outline:2px solid var(--accent); outline-offset:2px; z-index:4;}
+  .tile .cc{font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; color:rgba(10,14,18,.9);}
+  .tile .sc{font-family:'IBM Plex Mono',monospace; font-size:9px; color:rgba(10,14,18,.72);}
+  .continent-label{
+    position:absolute; font-size:10px; letter-spacing:.28em; text-transform:uppercase;
+    color:#33465a; font-weight:600; pointer-events:none;
+  }
+
+  #drawer{
+    position:fixed; top:56px; right:0; bottom:0; width:380px;
+    background:var(--panel2); border-left:1px solid var(--line);
+    transform:translateX(100%); transition:transform .3s ease; overflow-y:auto;
+    padding:20px 20px 40px; z-index:30;
+  }
+  #drawer.open{transform:translateX(0); box-shadow:-16px 0 40px rgba(0,0,0,.45);}
+  #dClose{
+    position:absolute; top:14px; right:14px; background:none; border:none; color:var(--faint);
+    font-size:16px; cursor:pointer; font-family:'IBM Plex Mono',monospace;
+  }
+  #dClose:hover{color:var(--txt);}
+  #dGradeRow{display:flex; align-items:center; gap:14px; margin:6px 0 4px;}
+  #dGrade{
+    width:58px; height:58px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:600; color:#0b0f13;
+  }
+  #dName{font-size:19px; font-weight:700;}
+  #dScoreLine{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--dim); margin-top:3px;}
+  #dNarr{font-size:12px; color:var(--dim); line-height:1.55; margin:14px 0 18px; border-left:2px solid var(--line2); padding-left:12px;}
+  #drawer h4{font-size:10px; text-transform:uppercase; letter-spacing:.14em; color:var(--faint); margin:18px 0 10px;}
+  .contrib{margin-bottom:9px;}
+  .contrib .cl{display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;}
+  .contrib .cl .n{color:var(--txt);}
+  .contrib .cl .v{font-family:'IBM Plex Mono',monospace;}
+  .barTrack{height:5px; background:var(--line); border-radius:3px; position:relative; overflow:hidden;}
+  .barFill{position:absolute; top:0; bottom:0; border-radius:3px;}
+  .profGrid{display:grid; grid-template-columns:1fr 1fr; gap:6px 16px;}
+  .prof{display:flex; justify-content:space-between; font-size:11px; padding:4px 0; border-bottom:1px solid var(--line);}
+  .prof .pn{color:var(--dim);}
+  .prof .pv{font-family:'IBM Plex Mono',monospace; color:var(--txt);}
+
+  #emptyNote{
+    position:absolute; bottom:26px; left:30px; font-size:11px; color:var(--faint);
+    font-family:'IBM Plex Mono',monospace; letter-spacing:.04em;
+  }
+
+  ::-webkit-scrollbar{width:9px; height:9px;}
+  ::-webkit-scrollbar-thumb{background:var(--line2); border-radius:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+  @media (max-width:900px){
+    #app{grid-template-columns:280px 1fr;}
+    #drawer{width:100%;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>World<span>lines</span></h1>
+    <div class="sub">scenario console · adjust drivers, watch the map recompute</div>
+    <div id="worldStat">
+      <div class="lbl">world<br>index</div>
+      <div>
+        <div id="worldScore">—</div>
+        <div id="worldDelta">—</div>
+      </div>
+      <button id="resetBtn">reset scenario</button>
+    </div>
+  </header>
+
+  <aside>
+    <h2>Scenario drivers</h2>
+    <div id="factorList"></div>
+
+    <div id="addBox">
+      <h3>Add a driver</h3>
+      <input type="text" id="addName" placeholder="Name, e.g. Global pandemic wave" maxlength="48">
+      <div class="hint">Who does it affect?</div>
+      <div class="chiprow" id="addChips"></div>
+      <div class="dirrow">
+        <button class="dirbtn hurt sel" id="dirHurt">hurts them</button>
+        <button class="dirbtn help" id="dirHelp">helps them</button>
+      </div>
+      <div class="hint">Strength <span id="addStrengthVal" class="mono" style="color:var(--accent)">12</span> pts at full intensity</div>
+      <input type="range" id="addStrength" min="4" max="30" value="12">
+      <button id="addBtn">Add driver</button>
+    </div>
+  </aside>
+
+  <main>
+    <div id="mapWrap">
+      <div id="legend">
+        <span>collapse</span>
+        <div id="legendBar"></div>
+        <span>thriving</span>
+        <div id="bandCounts"></div>
+      </div>
+      <div id="map"></div>
+      <div id="emptyNote">click any country tile for the data behind its grade</div>
+    </div>
+  </main>
+</div>
+
+<div id="drawer">
+  <button id="dClose">✕</button>
+  <div id="dGradeRow">
+    <div id="dGrade">—</div>
+    <div>
+      <div id="dName">—</div>
+      <div id="dScoreLine">—</div>
+    </div>
+  </div>
+  <div id="dNarr"></div>
+  <h4>What is moving this grade</h4>
+  <div id="dContribs"></div>
+  <h4>Country profile (exposure levels)</h4>
+  <div class="profGrid" id="dProfile"></div>
+</div>
+
+<script>
+/* ================= DATA ================= */
+
+const ATTR_LABELS = {
+  adv:'Advanced economy', emg:'Emerging economy', riser:'Rising manufacturer',
+  oilx:'Oil exporter', oilm:'Oil import reliance', exp:'Export dependence',
+  usal:'US alignment', cral:'China–Russia alignment', clim:'Climate vulnerability',
+  age:'Aging population', young:'Young population', tech:'AI / tech leadership',
+  usd:'Dollar exposure', usddebt:'Dollar-denominated debt', me:'Middle East exposure',
+  secdep:'US security dependence', tour:'Tourism reliance', outsvc:'Outsourced services hub',
+  usa:'Is the United States'
+};
+
+/* Each attribute is 0–1 exposure. base = wellbeing today (0–100). x,y = tile grid position. */
+const COUNTRIES = [
+ {id:'USA', name:'United States', x:3,  y:1, base:74, a:{adv:1, usal:1, tech:1, usd:1, age:.5, usa:1, oilx:.4}},
+ {id:'CAN', name:'Canada',        x:3,  y:0, base:79, a:{adv:1, usal:.9, oilx:.6, exp:.6, usd:.7, age:.5, tech:.4}},
+ {id:'MEX', name:'Mexico',        x:2,  y:2, base:58, a:{emg:1, usal:.7, exp:.8, usd:.8, young:.5, clim:.4, riser:.4}},
+ {id:'COL', name:'Colombia',      x:3,  y:3, base:54, a:{emg:1, usal:.5, oilx:.4, usd:.6, clim:.5, young:.4}},
+ {id:'BRA', name:'Brazil',        x:4,  y:4, base:58, a:{emg:1, exp:.5, clim:.5, young:.3, oilx:.3, usd:.4}},
+ {id:'CHL', name:'Chile',         x:3,  y:5, base:64, a:{emg:.8, adv:.3, exp:.8, usd:.5, clim:.3, usal:.4}},
+ {id:'ARG', name:'Argentina',     x:4,  y:5, base:50, a:{emg:1, exp:.5, usddebt:.9, usd:.7, clim:.3}},
+
+ {id:'GBR', name:'United Kingdom',x:10, y:0, base:73, a:{adv:1, usal:.9, tech:.6, age:.6, usd:.6, oilm:.4}},
+ {id:'SWE', name:'Sweden',        x:13, y:0, base:80, a:{adv:1, usal:.7, exp:.7, tech:.6, age:.6}},
+ {id:'NLD', name:'Netherlands',   x:11, y:1, base:80, a:{adv:1, usal:.8, exp:.9, age:.6, tech:.5}},
+ {id:'DEU', name:'Germany',       x:12, y:1, base:77, a:{adv:1, usal:.8, exp:1, age:.8, oilm:.7, tech:.5}},
+ {id:'POL', name:'Poland',        x:13, y:1, base:69, a:{adv:.6, emg:.4, usal:.8, secdep:.8, exp:.6, oilm:.5}},
+ {id:'UKR', name:'Ukraine',       x:14, y:1, base:34, a:{emg:1, secdep:1, usal:.8, exp:.4, oilm:.5}},
+ {id:'ESP', name:'Spain',         x:10, y:2, base:71, a:{adv:1, usal:.7, tour:.8, age:.7, oilm:.6, clim:.4}},
+ {id:'FRA', name:'France',        x:11, y:2, base:74, a:{adv:1, usal:.8, age:.6, tour:.5, tech:.5, oilm:.4}},
+ {id:'ITA', name:'Italy',         x:12, y:2, base:69, a:{adv:1, usal:.7, age:.9, tour:.7, oilm:.6, exp:.5}},
+ {id:'TUR', name:'Türkiye',       x:14, y:2, base:53, a:{emg:1, me:.6, usddebt:.8, tour:.6, exp:.5, oilm:.7}},
+ {id:'RUS', name:'Russia',        x:17, y:0, base:52, a:{cral:1, oilx:1, me:.4, age:.6}},
+
+ {id:'EGY', name:'Egypt',         x:12, y:3, base:45, a:{emg:1, me:.8, usddebt:.8, tour:.6, young:.6, clim:.6, oilm:.4}},
+ {id:'ISR', name:'Israel',        x:13, y:3, base:66, a:{adv:.8, me:1, usal:.9, secdep:.8, tech:.8}},
+ {id:'SAU', name:'Saudi Arabia',  x:14, y:4, base:63, a:{oilx:1, me:1, usal:.6, secdep:.6, usd:.7, young:.5}},
+ {id:'ARE', name:'UAE',           x:15, y:4, base:70, a:{oilx:.9, me:.9, usal:.5, usd:.7, tour:.5, tech:.4}},
+ {id:'IRN', name:'Iran',          x:15, y:3, base:42, a:{me:1, oilx:.8, cral:.8, young:.4, clim:.4}},
+
+ {id:'NGA', name:'Nigeria',       x:11, y:4, base:43, a:{emg:1, oilx:.8, usddebt:.7, young:.9, clim:.6}},
+ {id:'ETH', name:'Ethiopia',      x:13, y:4, base:40, a:{emg:1, young:.9, clim:.8, usddebt:.6, oilm:.4}},
+ {id:'KEN', name:'Kenya',         x:13, y:5, base:46, a:{emg:1, young:.8, clim:.7, usddebt:.6, tour:.4, outsvc:.3}},
+ {id:'ZAF', name:'South Africa',  x:12, y:5, base:50, a:{emg:1, exp:.5, clim:.5, young:.5, usd:.4}},
+
+ {id:'PAK', name:'Pakistan',      x:16, y:3, base:41, a:{emg:1, usddebt:.9, young:.8, clim:.9, oilm:.7, me:.4}},
+ {id:'IND', name:'India',         x:17, y:3, base:57, a:{emg:1, riser:1, young:.8, clim:.7, outsvc:1, oilm:.8, tech:.5}},
+ {id:'BGD', name:'Bangladesh',    x:18, y:3, base:47, a:{emg:1, riser:.7, exp:.8, young:.7, clim:1, usddebt:.5}},
+ {id:'CHN', name:'China',         x:18, y:2, base:64, a:{emg:.6, adv:.4, riser:1, cral:1, exp:.8, tech:.9, age:.7, oilm:.7}},
+ {id:'KOR', name:'South Korea',   x:20, y:2, base:74, a:{adv:1, usal:.9, secdep:.9, exp:.9, tech:.8, age:.9, oilm:.8}},
+ {id:'JPN', name:'Japan',         x:21, y:2, base:76, a:{adv:1, usal:.9, secdep:.9, exp:.7, tech:.7, age:1, oilm:.9}},
+ {id:'VNM', name:'Vietnam',       x:19, y:3, base:56, a:{emg:1, riser:.9, exp:.9, young:.5, clim:.7, cral:.3}},
+ {id:'THA', name:'Thailand',      x:18, y:4, base:58, a:{emg:1, exp:.7, tour:.9, age:.5, clim:.6}},
+ {id:'PHL', name:'Philippines',   x:21, y:3, base:52, a:{emg:1, usal:.6, outsvc:.8, young:.7, clim:.9, exp:.5}},
+ {id:'IDN', name:'Indonesia',     x:19, y:5, base:56, a:{emg:1, riser:.5, exp:.5, young:.6, clim:.7, tour:.5, oilx:.3}},
+
+ {id:'AUS', name:'Australia',     x:20, y:6, base:78, a:{adv:1, usal:.9, exp:.8, oilx:.4, clim:.5, tech:.4}},
+ {id:'NZL', name:'New Zealand',   x:22, y:7, base:78, a:{adv:1, usal:.8, exp:.7, clim:.3, age:.4}}
+];
+
+const CONTINENT_LABELS = [
+ {t:'Americas', x:1, y:-0.75}, {t:'Europe', x:10, y:-0.75}, {t:'Africa / Mid-East', x:11, y:3.35},
+ {t:'Asia', x:17, y:-0.75}, {t:'Oceania', x:20, y:5.4}
+];
+
+/* Preset drivers. weights = points on the 0–100 score at 100% intensity, scaled by each country's exposure. flat = applies to everyone. */
+const PRESET_FACTORS = [
+ {id:'mewar', name:'Prolonged Middle East war', desc:'Fueled in the background by China and Russia. Hits the region, oil importers, and shipping lanes; windfall for some exporters.',
+  intensity:75, on:true, flat:-2.5,
+  w:{me:-24, oilm:-8, oilx:+9, cral:+2, tour:-4}},
+ {id:'protect', name:'US protectionism', desc:'America walls off trade to shelter its debt-laden economy. Export economies and US-linked supply chains take the hit.',
+  intensity:70, on:true, flat:-1.5,
+  w:{exp:-13, usal:-6, usa:-7, riser:-4}},
+ {id:'risers', name:'China–India competitive rise', desc:'Manufacturing and services shift toward younger, cheaper economies, squeezing incumbents.',
+  intensity:65, on:true, flat:0,
+  w:{riser:+12, outsvc:+6, adv:-7, usa:-4}},
+ {id:'usd', name:'Dollar collapse', desc:'Reserve-currency status erodes. US import costs spike; dollar-debt emerging markets face crisis; de-dollarizers gain leverage.',
+  intensity:55, on:true, flat:-2,
+  w:{usa:-22, usd:-12, usddebt:-14, cral:+6}},
+ {id:'vacuum', name:'Superpower vacuum', desc:'No global enforcer. Security dependents are exposed, revisionist powers gain room, disputes go unarbitrated.',
+  intensity:60, on:true, flat:-3,
+  w:{secdep:-10, usal:-4, cral:+5, me:-4}},
+ {id:'climate', name:'Climate crisis acceleration', desc:'Heat, floods, and crop failure land hardest on vulnerable geographies; cooperation is blocked by fragmentation.',
+  intensity:60, on:true, flat:-3,
+  w:{clim:-20}},
+ {id:'demo', name:'Demographic decline', desc:'Low birth rates shrink workforces and tax bases in aging societies; young populations gain relative weight.',
+  intensity:55, on:true, flat:0,
+  w:{age:-13, young:+4}},
+ {id:'ai', name:'Unsafe AI labor replacement', desc:'Businesses swap workers for AI that is not fully reliable. Wages and service quality fall; tech owners capture the value; outsourcing hubs are undercut.',
+  intensity:65, on:true, flat:-2,
+  w:{adv:-8, outsvc:-11, tech:+5, emg:-3}},
+ {id:'digital', name:'Social atomization', desc:'Life moves onto platforms out of necessity. In-person commerce and community thin out; mental health drags on productivity.',
+  intensity:50, on:true, flat:-2.5,
+  w:{adv:-6}},
+ {id:'humandemand', name:'Human-services demand collapse', desc:'Hardship kills discretionary spending on things only humans provide: travel, hospitality, crafts, in-person services.',
+  intensity:50, on:true, flat:-1.5,
+  w:{tour:-11, exp:-4, outsvc:-4}}
+];
+
+/* Groups available for custom drivers */
+const CUSTOM_GROUPS = [
+ {k:'adv', l:'advanced'}, {k:'emg', l:'emerging'}, {k:'oilx', l:'oil exporters'},
+ {k:'oilm', l:'oil importers'}, {k:'exp', l:'export-reliant'}, {k:'usal', l:'US-aligned'},
+ {k:'cral', l:'China/Russia-aligned'}, {k:'clim', l:'climate-vulnerable'},
+ {k:'age', l:'aging'}, {k:'young', l:'young'}, {k:'tech', l:'tech leaders'},
+ {k:'me', l:'Middle East'}, {k:'tour', l:'tourism-reliant'}, {k:'usa', l:'USA itself'}
+];
+
+/* ================= STATE ================= */
+let factors = JSON.parse(JSON.stringify(PRESET_FACTORS));
+let selectedCountry = null;
+let customCount = 0;
+let addSel = new Set(['emg']);
+let addDir = 'hurt';
+
+/* ================= MODEL ================= */
+function factorEffect(c, f){
+  if(!f.on) return 0;
+  let e = f.flat || 0;
+  for(const k in f.w){ e += f.w[k] * (c.a[k] || 0); }
+  return e * (f.intensity/100);
+}
+function computeAll(){
+  return COUNTRIES.map(c=>{
+    const contribs = factors.map(f=>({f, v:factorEffect(c,f)}));
+    let score = c.base + contribs.reduce((s,x)=>s+x.v,0);
+    score = Math.max(4, Math.min(96, score));
+    return {c, score, contribs};
+  });
+}
+
+/* color: 0 = red, 50 = amber, 100 = green */
+function lerp(a,b,t){return a+(b-a)*t;}
+function hexToRgb(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+const C_BAD=hexToRgb('#d84f43'), C_MID=hexToRgb('#d9a83c'), C_GOOD=hexToRgb('#3fb96b');
+function scoreColor(s){
+  let a,b,t;
+  if(s<=50){ a=C_BAD; b=C_MID; t=s/50; } else { a=C_MID; b=C_GOOD; t=(s-50)/50; }
+  return `rgb(${Math.round(lerp(a[0],b[0],t))},${Math.round(lerp(a[1],b[1],t))},${Math.round(lerp(a[2],b[2],t))})`;
+}
+function grade(s){
+  if(s>=80) return 'A'; if(s>=70) return 'B'; if(s>=60) return 'C';
+  if(s>=50) return 'D'; if(s>=40) return 'E'; return 'F';
+}
+
+/* ================= RENDER: MAP ================= */
+const CELL=54, GAP=0;
+const mapEl = document.getElementById('map');
+function buildMap(){
+  mapEl.innerHTML='';
+  let maxX=0, maxY=0;
+  CONTINENT_LABELS.forEach(cl=>{
+    const d=document.createElement('div');
+    d.className='continent-label';
+    d.style.left=(cl.x*CELL)+'px'; d.style.top=(cl.y*CELL+30)+'px';
+    d.textContent=cl.t; mapEl.appendChild(d);
+  });
+  COUNTRIES.forEach(c=>{
+    const t=document.createElement('div');
+    t.className='tile'; t.id='tile_'+c.id;
+    t.style.left=(c.x*CELL)+'px'; t.style.top=(c.y*CELL+38)+'px';
+    t.innerHTML=`<div class="cc">${c.id}</div><div class="sc">—</div>`;
+    t.title=c.name;
+    t.addEventListener('click',()=>openDrawer(c.id));
+    mapEl.appendChild(t);
+    maxX=Math.max(maxX,c.x); maxY=Math.max(maxY,c.y);
+  });
+  mapEl.style.height=((maxY+2)*CELL+40)+'px';
+  mapEl.style.width=((maxX+2)*CELL)+'px';
+}
+
+function refresh(){
+  const results = computeAll();
+  const byId = {};
+  let sum=0, baseSum=0;
+  const bands={good:0, mid:0, bad:0};
+  results.forEach(r=>{
+    byId[r.c.id]=r;
+    sum+=r.score; baseSum+=r.c.base;
+    if(r.score>=65) bands.good++; else if(r.score>=45) bands.mid++; else bands.bad++;
+    const t=document.getElementById('tile_'+r.c.id);
+    t.style.backgroundColor=scoreColor(r.score);
+    t.querySelector('.sc').textContent=Math.round(r.score);
+  });
+  const avg=sum/results.length, bavg=baseSum/results.length, delta=avg-bavg;
+  document.getElementById('worldScore').textContent=avg.toFixed(1);
+  document.getElementById('worldScore').style.color=scoreColor(avg);
+  const wd=document.getElementById('worldDelta');
+  wd.textContent=(delta>=0?'+':'')+delta.toFixed(1)+' vs today';
+  wd.style.color=delta>=0?'var(--good)':'var(--bad)';
+  document.getElementById('bandCounts').innerHTML=
+    `<span class="b"><span class="dot" style="background:var(--good)"></span>${bands.good} stable</span>
+     <span class="b"><span class="dot" style="background:var(--mid)"></span>${bands.mid} strained</span>
+     <span class="b"><span class="dot" style="background:var(--bad)"></span>${bands.bad} in crisis</span>`;
+  if(selectedCountry) renderDrawer(byId[selectedCountry]);
+  window._results=byId;
+}
+
+/* ================= RENDER: FACTORS ================= */
+const listEl=document.getElementById('factorList');
+function buildFactors(){
+  listEl.innerHTML='';
+  factors.forEach((f,i)=>{
+    const d=document.createElement('div');
+    d.className='factor'+(f.on?'':' off');
+    d.innerHTML=`
+      <div class="top">
+        <div style="flex:1">
+          <div class="name">${f.name}</div>
+          ${f.desc?`<div class="desc">${f.desc}</div>`:''}
+        </div>
+        <div class="val">${f.intensity}</div>
+      </div>
+      <input type="range" min="0" max="100" value="${f.intensity}">
+      <div class="row2">
+        <label class="switch"><input type="checkbox" ${f.on?'checked':''}><span class="slider-t"></span></label>
+        <span class="toglabel">${f.on?'active':'off'}</span>
+        <button class="rm">remove</button>
+      </div>`;
+    const range=d.querySelector('input[type=range]');
+    range.addEventListener('input',e=>{
+      f.intensity=+e.target.value;
+      d.querySelector('.val').textContent=f.intensity;
+      refresh();
+    });
+    const tog=d.querySelector('.switch input');
+    tog.addEventListener('change',e=>{
+      f.on=e.target.checked;
+      d.classList.toggle('off',!f.on);
+      d.querySelector('.toglabel').textContent=f.on?'active':'off';
+      refresh();
+    });
+    d.querySelector('.rm').addEventListener('click',()=>{
+      factors.splice(i,1); buildFactors(); refresh();
+    });
+    listEl.appendChild(d);
+  });
+}
+
+/* ================= ADD DRIVER ================= */
+const chipsEl=document.getElementById('addChips');
+CUSTOM_GROUPS.forEach(g=>{
+  const c=document.createElement('span');
+  c.className='chip'+(addSel.has(g.k)?' sel':'');
+  c.textContent=g.l;
+  c.addEventListener('click',()=>{
+    if(addSel.has(g.k)) addSel.delete(g.k); else addSel.add(g.k);
+    c.classList.toggle('sel');
+  });
+  chipsEl.appendChild(c);
+});
+document.getElementById('dirHurt').addEventListener('click',()=>{
+  addDir='hurt';
+  document.getElementById('dirHurt').classList.add('sel');
+  document.getElementById('dirHelp').classList.remove('sel');
+});
+document.getElementById('dirHelp').addEventListener('click',()=>{
+  addDir='help';
+  document.getElementById('dirHelp').classList.add('sel');
+  document.getElementById('dirHurt').classList.remove('sel');
+});
+document.getElementById('addStrength').addEventListener('input',e=>{
+  document.getElementById('addStrengthVal').textContent=e.target.value;
+});
+document.getElementById('addBtn').addEventListener('click',()=>{
+  const name=document.getElementById('addName').value.trim();
+  if(!name){ document.getElementById('addName').focus(); return; }
+  if(addSel.size===0){ return; }
+  const str=+document.getElementById('addStrength').value * (addDir==='hurt'?-1:1);
+  const w={};
+  addSel.forEach(k=>w[k]=str);
+  customCount++;
+  factors.push({id:'custom'+customCount, name, desc:'Custom driver · '+(addDir==='hurt'?'hurts':'helps')+' selected groups', intensity:50, on:true, flat:0, w});
+  document.getElementById('addName').value='';
+  buildFactors(); refresh();
+  listEl.lastElementChild.scrollIntoView({behavior:'smooth', block:'nearest'});
+});
+
+/* ================= DRAWER ================= */
+const drawer=document.getElementById('drawer');
+document.getElementById('dClose').addEventListener('click',()=>{
+  drawer.classList.remove('open');
+  if(selectedCountry){ const t=document.getElementById('tile_'+selectedCountry); if(t) t.classList.remove('selected'); }
+  selectedCountry=null;
+});
+function openDrawer(id){
+  if(selectedCountry){ const p=document.getElementById('tile_'+selectedCountry); if(p) p.classList.remove('selected'); }
+  selectedCountry=id;
+  document.getElementById('tile_'+id).classList.add('selected');
+  renderDrawer(window._results[id]);
+  drawer.classList.add('open');
+}
+function narrative(r){
+  const negs=r.contribs.filter(x=>x.v<-1).sort((a,b)=>a.v-b.v).slice(0,2).map(x=>x.f.name.toLowerCase());
+  const poss=r.contribs.filter(x=>x.v>1).sort((a,b)=>b.v-a.v).slice(0,1).map(x=>x.f.name.toLowerCase());
+  const d=r.score-r.c.base;
+  let s=`${r.c.name} moves from a baseline of ${r.c.base} to ${Math.round(r.score)} under this scenario (${d>=0?'+':''}${d.toFixed(1)}). `;
+  if(negs.length) s+=`The main drag: ${negs.join(' and ')}. `;
+  if(poss.length) s+=`Partly offset by ${poss[0]}. `;
+  if(!negs.length && !poss.length) s+='No active driver moves it much either way.';
+  return s;
+}
+function renderDrawer(r){
+  const col=scoreColor(r.score);
+  document.getElementById('dGrade').textContent=grade(r.score);
+  document.getElementById('dGrade').style.background=col;
+  document.getElementById('dName').textContent=r.c.name;
+  const d=r.score-r.c.base;
+  document.getElementById('dScoreLine').textContent=
+    `score ${r.score.toFixed(1)} / 100 · baseline ${r.c.base} · ${d>=0?'+':''}${d.toFixed(1)}`;
+  document.getElementById('dNarr').textContent=narrative(r);
+
+  const cEl=document.getElementById('dContribs');
+  cEl.innerHTML='';
+  const sorted=[...r.contribs].sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+  const maxAbs=Math.max(1,...sorted.map(x=>Math.abs(x.v)));
+  sorted.forEach(x=>{
+    if(!x.f.on && Math.abs(x.v)<0.01) return;
+    const pct=Math.abs(x.v)/maxAbs*100;
+    const pos=x.v>=0;
+    const row=document.createElement('div');
+    row.className='contrib';
+    row.innerHTML=`
+      <div class="cl">
+        <span class="n">${x.f.name}${x.f.on?'':' (off)'}</span>
+        <span class="v" style="color:${pos?'var(--good)':'var(--bad)'}">${pos?'+':''}${x.v.toFixed(1)}</span>
+      </div>
+      <div class="barTrack">
+        <div class="barFill" style="width:${pct}%;background:${pos?'var(--good)':'var(--bad)'};${pos?'left:0':'right:0'}"></div>
+      </div>`;
+    cEl.appendChild(row);
+  });
+
+  const pEl=document.getElementById('dProfile');
+  pEl.innerHTML='';
+  Object.entries(r.c.a)
+    .filter(([k,v])=>v>0 && k!=='usa')
+    .sort((a,b)=>b[1]-a[1])
+    .forEach(([k,v])=>{
+      const p=document.createElement('div');
+      p.className='prof';
+      p.innerHTML=`<span class="pn">${ATTR_LABELS[k]||k}</span><span class="pv">${Math.round(v*100)}%</span>`;
+      pEl.appendChild(p);
+    });
+}
+
+/* ================= RESET ================= */
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  factors=JSON.parse(JSON.stringify(PRESET_FACTORS));
+  buildFactors(); refresh();
+});
+
+/* ================= INIT ================= */
+buildMap();
+buildFactors();
+refresh();
+</script>
+</body>
+</html>
